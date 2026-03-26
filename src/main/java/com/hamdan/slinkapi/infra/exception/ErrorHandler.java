@@ -1,6 +1,7 @@
 package com.hamdan.slinkapi.infra.exception;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -9,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -19,6 +21,21 @@ public class ErrorHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<List<FieldValidationErrDto>> handleErr400(MethodArgumentNotValidException e) {
         return ResponseEntity.badRequest().body(e.getFieldErrors().stream().map(FieldValidationErrDto::new).toList());
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<List<ApiErrDto>> handleErr400(HandlerMethodValidationException e) {
+        return ResponseEntity.badRequest().body(
+                e.getParameterValidationResults()
+                        .stream()
+                        .flatMap(r -> r.getResolvableErrors().stream()
+                                .map(err -> new ApiErrDto(
+                                            HttpStatus.BAD_REQUEST.value(),
+                                            String.format("Parâmetro '%s' inválido (%s).", r.getMethodParameter().getParameterName(), err.getDefaultMessage())
+                                    ))
+                        )
+                        .toList()
+        );
     }
 
     @ExceptionHandler(AuthenticationException.class)
